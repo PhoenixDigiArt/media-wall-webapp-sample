@@ -1,65 +1,73 @@
 import * as THREE from 'three'
 import * as dat from 'lil-gui'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import * as CANNON from 'cannon-es'
+import CannonDebugger from 'cannon-es-debugger'
 
 let canvas, renderer, scene, camera, controls
+let world, defaultMaterial, defaultContactMaterial, cannonDebugger
 let sizes, aspectRatio, mouse, clock, oldElapsedTime
+let normalMaterial, transparentMaterial, videoMaterial
 let planeGeometry, sphereGeo, torusKnotGeo, planeVideoMesh, sphereVideoMesh, torusKnotVideoMesh
 let debugGui
 let ambientLight
-let video, videoTex, videoMaterial
+let video, videoTex
 
-let lerpActive = false
-let lerpParam, lerpStart, lerpTarget, lerpStartTime
+let objectsToUpdate = []
+let videoCubes = []
 
-let tParamsNum, tRadius, tTube, tTubeSegments, tRadialSegments, tP, tQ
-let tParams
+console.log(CannonDebugger)
 
 // Array to store parameters used in the debug UI
 const parameters = {
     orbitControls: true,
     autoRotate: false,
-    torusRadius: 1,
-    torusTube: 0.3,
-    torusTubeSegments: 64,
-    torusRadialSegments: 8,
-    torusP: 2,
-    torusQ: 3
+    resetBoxes: () => {
+        resetBoxes()
+    }
 }
 
 init()
 
+createStaticBox(new THREE.Vector3(0, -5, 0), new THREE.Vector3(100, 0.1, 20), normalMaterial) // floor
+createStaticBox(new THREE.Vector3(0, 10, 0), new THREE.Vector3(100, 0.1, 20), normalMaterial) // ceiling
+createStaticBox(new THREE.Vector3(15, 0, 0), new THREE.Vector3(0.1, 20, 20), normalMaterial)  // right wall
+createStaticBox(new THREE.Vector3(-15, 0, 0), new THREE.Vector3(0.1, 20, 20), normalMaterial)  // left wall
+createStaticBox(new THREE.Vector3(0, 0, -10), new THREE.Vector3(100, 20, 0.1), normalMaterial)  // back wall
+//createStaticBox(new THREE.Vector3(0, 0, 2), new THREE.Vector3(10, 10, 0.1), transparentMaterial)  // front wall
+
+//videoCubes.push( createDynamicBox(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 1), videoMaterial) )
+//videoCubes.push( createDynamicBox(new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 1, 1), videoMaterial) )
+//videoCubes.push( createDynamicBox(new THREE.Vector3(0, 2, 0), new THREE.Vector3(1, 1, 1), videoMaterial) )
+//videoCubes.push( createDynamicBox(new THREE.Vector3(0, 3, 0), new THREE.Vector3(1, 1, 1), videoMaterial) )
+
+for(var x = 0 ; x < 16 ; x++){
+    for(var y = 0; y < 9; y++){
+        videoCubes.push(createDynamicBox(new THREE.Vector3(x - 8, y, 0), new THREE.Vector3(1, 1, 1,), videoMaterial))
+    }
+}
+
+
 function init(){
     // Master function to initialise variables and call other initialisation functions
-
     mouse = new THREE.Vector2()
 
     //// Screen
     sizes = { width: window.innerWidth, height: window.innerHeight}
     aspectRatio = sizes.width / sizes.height
 
+    normalMaterial = new THREE.MeshNormalMaterial()
+    transparentMaterial = new THREE.MeshBasicMaterial( { transparent: true, opacity: 0 })
+
     //// Update
     clock = new THREE.Clock()
     oldElapsedTime = 0
-
-    //// Torus parameters
-    tParamsNum = 6
-
-    tParams = []
-    tParams.push(new THREE.Vector2(0.01, 10))
-    tParams.push(new THREE.Vector2(0.01, 10))
-    tParams.push(new THREE.Vector2(0.01, 128))
-    tParams.push(new THREE.Vector2(0.01, 64))
-    tParams.push(new THREE.Vector2(0.01, 10))
-    tParams.push(new THREE.Vector2(0.01, 10))
-    console.log(tParams)
 
     //// Initialisers
     initScene()
     initGui()
     initWebcam()
-
-    startTorusLoop()
+    initPhysics()
 }
 
 function initScene(){
@@ -80,7 +88,7 @@ function initScene(){
     scene = new THREE.Scene()
     
     camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-    camera.position.set(0, 0, 10)
+    camera.position.set(0, 0, 8)
     scene.add(camera)
     camera.far = 10000
 
@@ -97,12 +105,28 @@ function initGui(){
 
     debugGui.add(parameters, 'orbitControls').onChange( function(){ controls.enabled = parameters.orbitControls } )
     debugGui.add(parameters, 'autoRotate').onChange( function(){ controls.autoRotate = parameters.autoRotate } )
-    debugGui.add(parameters, 'torusRadius').min(0.01).max(10).onChange( updateTorusGeo ).listen()
-    debugGui.add(parameters, 'torusTube').min(0.01).max(10).onChange( updateTorusGeo ).listen()
-    debugGui.add(parameters, 'torusTubeSegments').min(0.01).max(128).onChange( updateTorusGeo ).listen()
-    debugGui.add(parameters, 'torusRadialSegments').min(0.01).max(64).onChange( updateTorusGeo ).listen()
-    debugGui.add(parameters, 'torusP').min(0.01).max(10).onChange( updateTorusGeo ).listen()
-    debugGui.add(parameters, 'torusQ').min(0.01).max(10).onChange( updateTorusGeo ).listen()
+    debugGui.add(parameters, 'resetBoxes')
+}
+
+function initPhysics(){
+    world = new CANNON.World()
+    world.broadphase = new CANNON.SAPBroadphase(world)
+    world.allowSleep = true
+
+    world.gravity = new CANNON.Vec3(0, -9, 0)
+
+    defaultMaterial = new CANNON.Material('default')
+    defaultContactMaterial = new CANNON.ContactMaterial(
+        defaultMaterial,
+        defaultMaterial,
+        {
+            friction: 0.1,
+            restitution: 0.7
+        }
+    )
+    world.defaultContactMaterial = defaultContactMaterial
+
+    cannonDebugger = new CannonDebugger(scene, world)
 }
 
 function initWebcam(){
@@ -113,29 +137,18 @@ function initWebcam(){
     //// Setting up three.js components for rendering the webcam feed in the scene
       // This example renders a single video material on to multiple geometries
     videoTex = new THREE.VideoTexture(video)
+    console.log(videoTex)
+    videoTex.repeat = new THREE.Vector2(0.0625, 0.11111)
+    videoTex.center = new THREE.Vector2(8 * 0.0625, 4.5 * 0.11111)
     videoTex.colorSpace = THREE.SRGBColorSpace
     videoMaterial = new THREE.MeshStandardMaterial({ map: videoTex, transparent: true, opacity: 1 })
 
     planeGeometry = new THREE.PlaneGeometry( 16, 9 );
     planeGeometry.scale( 0.5, 0.5, 0.5 );
 
-    sphereGeo = new THREE.SphereGeometry(1, 32, 32)
-    sphereGeo.scale(2, 2, 2)
-
-    torusKnotGeo = new THREE.TorusKnotGeometry(1, 0.3, 64, 8, 2, 3)
-    torusKnotGeo.scale(2, 2, 2)
-
     planeVideoMesh = new THREE.Mesh( planeGeometry, videoMaterial )
     scene.add(planeVideoMesh)
-    planeVideoMesh.position.set(7, 0, 0)
-
-    sphereVideoMesh = new THREE.Mesh(sphereGeo, videoMaterial)
-    //scene.add(sphereVideoMesh)
-    sphereVideoMesh.rotateOnAxis(new THREE.Vector3(0,1,0), -90)
-
-    torusKnotVideoMesh = new THREE.Mesh(torusKnotGeo, videoMaterial)
-    scene.add(torusKnotVideoMesh)
-    torusKnotVideoMesh.rotateOnAxis(new THREE.Vector3(0,1,0), 180)
+    planeVideoMesh.position.set(0, 0, 1)
 
     //// Ensures the current device has an accessible webcam, sets parameters, and starts webcam
     if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
@@ -153,66 +166,51 @@ function initWebcam(){
     }
 }
 
-function updateTorusGeo(){
-    //console.log("updating torus geo")
+function createStaticBox(position, size = {x:1, y:1, z:1}, material = normalMaterial){
+    const boxGeo = new THREE.BoxGeometry(size.x, size.y, size.z)
+    const boxMesh = new THREE.Mesh(boxGeo, material)
 
-    torusKnotGeo.dispose()
-    torusKnotGeo = new THREE.TorusKnotGeometry(
-        parameters.torusRadius,
-        parameters.torusTube,
-        parameters.torusTubeSegments,
-        parameters.torusRadialSegments,
-        parameters.torusP,
-        parameters.torusQ
-    )
+    boxMesh.position.copy(position)
+    boxMesh.name = "static_box"
+    scene.add(boxMesh)
 
-    //torusKnotGeo.computeBoundingSphere()
-
-    torusKnotVideoMesh.geometry = torusKnotGeo
+    const shape = new CANNON.Box( new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2) )
+    const body = new CANNON.Body({
+        mass: 0,
+        shape: shape
+    })
+    body.position.copy(position)
+    world.addBody(body)
 
 }
 
-function startTorusLoop(){
-    var randParam = THREE.MathUtils.randInt(0, tParamsNum - 1)
-    //randParam = 0
-    var min = tParams[randParam].x
-    var max = tParams[randParam].y
+function createDynamicBox(position, size = {x:1, y:1, z:1}, material = normalMaterial){
+    const boxGeo = new THREE.BoxGeometry(size.x, size.y, size.z)
+    const boxMesh = new THREE.Mesh(boxGeo, material)
 
-    var lerpTarget = THREE.MathUtils.randFloat(min, max)
+    boxMesh.position.copy(position)
+    scene.add(boxMesh)
 
-    startLerp(randParam, lerpTarget)
+    const shape = new CANNON.Box( new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2) )
+    const body = new CANNON.Body({
+        mass: 1,
+        shape: shape
+    })
+    body.position.copy(position)
+    world.addBody(body)
 
-    console.log("Torus loop started. RandParam: " + randParam + "  min: " + min + "  max: " + max + "  target: " + lerpTarget)
+    objectsToUpdate.push({ mesh: boxMesh, body: body })
+    body.userData = { startPos: position }
+
+    return body
 }
 
-function startLerp(param, target){
-    switch(param){
-        case 0: // radius
-            lerpStart = parameters.torusRadius
-            break;
-        case 1: // tube 
-            lerpStart = parameters.torusTube
-            break;
-        case 2: // tube segments
-            lerpStart = parameters.torusTubeSegments
-            break;
-        case 3: // radial segments
-            lerpStart = parameters.torusRadialSegments
-            break;
-        case 4: // p
-            lerpStart = parameters.torusP
-            break;
-        case 5: // q
-            lerpStart = parameters.torusQ
-            break;
-    }
-
-    lerpStartTime = clock.getElapsedTime()
-    lerpParam = param
-
-    lerpTarget = target
-    lerpActive = true
-
+function resetBoxes(){
+    videoCubes.forEach(element => {
+        element.position.copy(element.userData.startPos)    // initial position
+        element.quaternion.set(0,0,0,1)     //identity quaternion
+        element.velocity.set(0,0,0)         // reset velocity
+    })
 }
 
 // Update /////
@@ -227,77 +225,12 @@ function tick(){
 
     if(parameters.autoRotate) controls.update()
 
-    if(lerpActive){
-        switch(lerpParam){
-            case 0: // radius
-                parameters.torusRadius = THREE.MathUtils.lerp(lerpStart, lerpTarget, elapsedTime - lerpStartTime)
-                if(parameters.torusRadius > tParams[lerpParam].y){
-                    parameters.torusRadius = tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                else if(parameters.torusRadius < -tParams[lerpParam].y){
-                    parameters.torusRadius = -tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                break;
-            case 1: // tube 
-                parameters.torusTube = THREE.MathUtils.lerp(lerpStart, lerpTarget, elapsedTime - lerpStartTime / 4)
-                if(parameters.torusTube > tParams[lerpParam].y){
-                    parameters.torusTube = tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                else if(parameters.torusTube < -tParams[lerpParam].y){
-                    parameters.torusTube = -tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                break;
-            case 2: // tube segments
-                parameters.torusTubeSegments = THREE.MathUtils.lerp(lerpStart, lerpTarget, elapsedTime - lerpStartTime / 4)
-                if(parameters.torusTubeSegments > tParams[lerpParam].y){
-                    parameters.torusTubeSegments = tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                else if(parameters.torusTubeSegments < -tParams[lerpParam].y){
-                    parameters.torusTubeSegments = -tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                break;
-            case 3: // radial segments
-                parameters.torusRadialSegments = THREE.MathUtils.lerp(lerpStart, lerpTarget, elapsedTime - lerpStartTime / 4)
-                if(parameters.torusRadialSegments > tParams[lerpParam].y){
-                    parameters.torusRadialSegments = tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                else if(parameters.torusRadialSegments < -tParams[lerpParam].y){
-                    parameters.torusRadialSegments = -tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                break;
-            case 4: // p
-                parameters.torusP = THREE.MathUtils.lerp(lerpStart, lerpTarget, elapsedTime - lerpStartTime / 4)
-                if(parameters.torusP > tParams[lerpParam].y){
-                    parameters.torusP = tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                else if(parameters.torusP < -tParams[lerpParam].y){
-                    parameters.torusP = -tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                break;
-            case 5: // q
-                parameters.torusQ = THREE.MathUtils.lerp(lerpStart, lerpTarget, elapsedTime - lerpStartTime / 4)
-                if(parameters.torusQ > tParams[lerpParam].y){
-                    parameters.torusQ = tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                else if(parameters.torusQ < -tParams[lerpParam].y){
-                    parameters.torusQ = -tParams[lerpParam].y
-                    startTorusLoop()
-                }
-                break;
-        }
-        updateTorusGeo()
-    }
+    world.step(1 / 60, deltaTime, 3)
+
+    objectsToUpdate.forEach(element => {
+        element.mesh.position.copy(element.body.position)
+        element.mesh.quaternion.copy(element.body.quaternion)
+    })
 
     renderer.render(scene, camera)
 
