@@ -5,25 +5,37 @@ import * as CANNON from 'cannon-es'
 import CannonDebugger from 'cannon-es-debugger'
 
 let canvas, renderer, scene, camera, controls
-let world, defaultMaterial, defaultContactMaterial, cannonDebugger
+let world, defaultMaterial, defaultContactMaterial, cannonDebugger, block
 let sizes, aspectRatio, mouse, clock, oldElapsedTime
 let normalMaterial, transparentMaterial, videoMaterial
-let planeGeometry, sphereGeo, torusKnotGeo, planeVideoMesh, sphereVideoMesh, torusKnotVideoMesh
+let planeGeometry, planeVideoMesh
 let debugGui
 let ambientLight
-let video, videoTex
+let video, videoWholeTex
 
 let objectsToUpdate = []
 let videoCubes = []
+let videoMatList = []
+
+let moveBlock = false
+
+let arr
+console.log(arr)
 
 console.log(CannonDebugger)
 
 // Array to store parameters used in the debug UI
 const parameters = {
     orbitControls: true,
-    autoRotate: false,
+    autoRotate: true,
+    xPixels: 16,
+    yPixels: 9,
     resetBoxes: () => {
         resetBoxes()
+    },
+    moveBlock: () => {
+        block.position.set(block.position.x, block.position.y, -10)
+        moveBlock = true
     }
 }
 
@@ -36,28 +48,26 @@ createStaticBox(new THREE.Vector3(-15, 0, 0), new THREE.Vector3(0.1, 20, 20), no
 createStaticBox(new THREE.Vector3(0, 0, -10), new THREE.Vector3(100, 20, 0.1), normalMaterial)  // back wall
 //createStaticBox(new THREE.Vector3(0, 0, 2), new THREE.Vector3(10, 10, 0.1), transparentMaterial)  // front wall
 
-//videoCubes.push( createDynamicBox(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 1), videoMaterial) )
-//videoCubes.push( createDynamicBox(new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 1, 1), videoMaterial) )
-//videoCubes.push( createDynamicBox(new THREE.Vector3(0, 2, 0), new THREE.Vector3(1, 1, 1), videoMaterial) )
-//videoCubes.push( createDynamicBox(new THREE.Vector3(0, 3, 0), new THREE.Vector3(1, 1, 1), videoMaterial) )
+block = createKinematicBox(new THREE.Vector3(0, -2, -10), new THREE.Vector3(8, 5, 10), transparentMaterial)
 
-for(var x = 0 ; x < 16 ; x++){
-    for(var y = 0; y < 9; y++){
-        videoCubes.push(createDynamicBox(new THREE.Vector3(x - 8, y, 0), new THREE.Vector3(1, 1, 1,), videoMaterial))
+for(var x = 0 ; x < parameters.xPixels ; x++){
+    for(var y = 0; y < parameters.yPixels; y++){
+        videoCubes.push(createDynamicBox(new THREE.Vector3(x - parameters.xPixels / 2, y - parameters.yPixels / 2, 0), new THREE.Vector3(1, 1, 1,), arr[x][y]))
     }
 }
-
 
 function init(){
     // Master function to initialise variables and call other initialisation functions
     mouse = new THREE.Vector2()
 
     //// Screen
-    sizes = { width: window.innerWidth, height: window.innerHeight}
+    sizes = { width: window.innerWidth, height: window.innerHeight }
     aspectRatio = sizes.width / sizes.height
 
     normalMaterial = new THREE.MeshNormalMaterial()
     transparentMaterial = new THREE.MeshBasicMaterial( { transparent: true, opacity: 0 })
+
+    arr = Array.from(Array(parameters.xPixels), () => new Array(parameters.yPixels))
 
     //// Update
     clock = new THREE.Clock()
@@ -94,6 +104,8 @@ function initScene(){
 
     controls = new OrbitControls(camera, canvas)    // orbit controls for viewing the scene during development
     controls.enableDamping = true
+    controls.autoRotate = parameters.autoRotate
+    controls.autoRotateSpeed = 4
 
     ambientLight = new THREE.AmbientLight(0xffffff, 0.7)
     scene.add(ambientLight)
@@ -105,7 +117,12 @@ function initGui(){
 
     debugGui.add(parameters, 'orbitControls').onChange( function(){ controls.enabled = parameters.orbitControls } )
     debugGui.add(parameters, 'autoRotate').onChange( function(){ controls.autoRotate = parameters.autoRotate } )
+    //debugGui.add(parameters, 'xPixels').min(1).max(32).step(1)
+    //debugGui.add(parameters, 'yPixels').min(1).max(18).step(1)
     debugGui.add(parameters, 'resetBoxes')
+    debugGui.add(parameters, 'moveBlock')
+
+    debugGui.hide()
 }
 
 function initPhysics(){
@@ -136,19 +153,45 @@ function initWebcam(){
 
     //// Setting up three.js components for rendering the webcam feed in the scene
       // This example renders a single video material on to multiple geometries
-    videoTex = new THREE.VideoTexture(video)
-    console.log(videoTex)
-    videoTex.repeat = new THREE.Vector2(0.0625, 0.11111)
-    videoTex.center = new THREE.Vector2(8 * 0.0625, 4.5 * 0.11111)
-    videoTex.colorSpace = THREE.SRGBColorSpace
-    videoMaterial = new THREE.MeshStandardMaterial({ map: videoTex, transparent: true, opacity: 1 })
+    
+    var x = 1 / parameters.xPixels
+    var y = 1 / parameters.yPixels
 
-    planeGeometry = new THREE.PlaneGeometry( 16, 9 );
-    planeGeometry.scale( 0.5, 0.5, 0.5 );
+    var repeat = new THREE.Vector2( 1 / parameters.xPixels, 1 / parameters.yPixels )
+    console.log(repeat)
+
+    for(var x = 0 ; x < parameters.xPixels ; x++){
+        for(var y = 0; y < parameters.yPixels; y++){
+
+            var center = new THREE.Vector3(x * repeat.x, y * repeat.y)
+
+            var videoTex = new THREE.VideoTexture(video)
+            //videoTex.flipY = true
+            videoTex.repeat = repeat
+            videoTex.center = center
+            //videoTex.wrapS = THREE.RepeatWrapping
+            //videoTex.wrapT = THREE.RepeatWrapping
+
+            videoTex.userData = { x: x, y: y}
+
+            //videoMatList.push(new THREE.MeshStandardMaterial({ map: videoTex }))
+
+            arr[x][y] = new THREE.MeshStandardMaterial({ map: videoTex })
+        }
+    }
+
+    videoWholeTex = new THREE.VideoTexture(video)
+
+    videoWholeTex.colorSpace = THREE.SRGBColorSpace
+    videoMaterial = new THREE.MeshStandardMaterial({ map: videoWholeTex, transparent: true, opacity: 1, side: THREE.DoubleSide })
+
+    planeGeometry = new THREE.PlaneGeometry( parameters.xPixels, parameters.yPixels );
+    planeGeometry.scale( 1.9, 1.9, 1 );
 
     planeVideoMesh = new THREE.Mesh( planeGeometry, videoMaterial )
     scene.add(planeVideoMesh)
-    planeVideoMesh.position.set(0, 0, 1)
+    //planeVideoMesh.rotation.set(0, 180, 0)
+    planeVideoMesh.position.set(0, 2.5, 10)
 
     //// Ensures the current device has an accessible webcam, sets parameters, and starts webcam
     if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
@@ -205,6 +248,28 @@ function createDynamicBox(position, size = {x:1, y:1, z:1}, material = normalMat
     return body
 }
 
+function createKinematicBox(position, size = {x:1, y:1, z:1}, material = normalMaterial){
+    const boxGeo = new THREE.BoxGeometry(size.x, size.y, size.z)
+    const boxMesh = new THREE.Mesh(boxGeo, material)
+
+    boxMesh.position.copy(position)
+    scene.add(boxMesh)
+
+    const shape = new CANNON.Box( new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2) )
+    const body = new CANNON.Body({
+        mass: 1,
+        shape: shape,
+        type: CANNON.Body.KINEMATIC
+    })
+    body.position.copy(position)
+    world.addBody(body)
+
+    objectsToUpdate.push({ mesh: boxMesh, body: body })
+    body.userData = { startPos: position }
+
+    return body
+}
+
 function resetBoxes(){
     videoCubes.forEach(element => {
         element.position.copy(element.userData.startPos)    // initial position
@@ -223,7 +288,10 @@ function tick(){
     const deltaTime = elapsedTime - oldElapsedTime
     oldElapsedTime = elapsedTime
 
-    if(parameters.autoRotate) controls.update()
+    if(parameters.autoRotate){
+        controls.update()
+        console.log(camera.position.z)
+    } 
 
     world.step(1 / 60, deltaTime, 3)
 
@@ -231,6 +299,14 @@ function tick(){
         element.mesh.position.copy(element.body.position)
         element.mesh.quaternion.copy(element.body.quaternion)
     })
+
+    if(moveBlock){
+        block.position.set(block.position.x, block.position.y, block.position.z + 100 * deltaTime)
+        if(block.position.z > 20){
+            console.log("Block finished")
+            moveBlock = false
+        }
+    }
 
     renderer.render(scene, camera)
 
