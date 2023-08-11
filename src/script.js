@@ -122,7 +122,7 @@ function initGui(){
     debugGui.add(parameters, 'resetBoxes')
     debugGui.add(parameters, 'moveBlock')
 
-    debugGui.hide()
+    //debugGui.hide()
 }
 
 function initPhysics(){
@@ -195,7 +195,7 @@ function initWebcam(){
 
     //// Ensures the current device has an accessible webcam, sets parameters, and starts webcam
     if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
-        const constraints = { video: { width: 1280, height: 720, facingMode: 'user' } };
+        const constraints = { video: true };
 
         navigator.mediaDevices.getUserMedia( constraints ).then( function ( stream ) {
             video.srcObject = stream
