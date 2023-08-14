@@ -39,7 +39,6 @@ function init(){
     aspectRatio = sizes.width / sizes.height
 
     normalMaterial = new THREE.MeshNormalMaterial()
-    transparentMaterial = new THREE.MeshBasicMaterial( { transparent: true, opacity: 0 })
 
     //// Update
     clock = new THREE.Clock()
@@ -49,7 +48,6 @@ function init(){
     initScene()
     initGui()
     initWebcam()
-    initPhysics()
 }
 
 function initScene(){
@@ -76,8 +74,6 @@ function initScene(){
 
     controls = new OrbitControls(camera, canvas)    // orbit controls for viewing the scene during development
     controls.enableDamping = true
-    controls.autoRotate = parameters.autoRotate
-    controls.autoRotateSpeed = 3
 
     ambientLight = new THREE.AmbientLight(0xffffff, 0.7)
     scene.add(ambientLight)
@@ -124,18 +120,16 @@ function initWebcam(){
     //// Setting up three.js components for rendering the webcam feed in the scene
       // This example renders a single video material on to multiple geometries
 
-    videoWholeTex = new THREE.VideoTexture(video)
+    const videoWholeTex = new THREE.VideoTexture(video)
 
     videoWholeTex.colorSpace = THREE.SRGBColorSpace
     videoMaterial = new THREE.MeshStandardMaterial({ map: videoWholeTex, side: THREE.DoubleSide })
 
-    planeGeometry = new THREE.PlaneGeometry( parameters.xPixels, parameters.yPixels );
-    planeGeometry.scale( 1.9, 1.9, 1 );
+    getWebcam(true) // Starts the webcam source, set true when testing and false when deploying to media wall
 
-    planeVideoMesh = new THREE.Mesh( planeGeometry, videoMaterial )
-    scene.add(planeVideoMesh)
-    planeVideoMesh.position.set(0, 2.5, 10)
+}
 
+function getWebcam(testWebcam){
     //// Ensures the current device has an accessible webcam, sets parameters, and starts webcam
       // When deployed on the media wall, the program will have to access the webcam in a different way than on your home PC
       // Set testWebcam to true when testing at home and set to false when deploying to the media wall
@@ -228,7 +222,11 @@ function createStaticBox(position, size = {x:1, y:1, z:1}, material = normalMate
 function createDynamicBox(position, size = {x:1, y:1, z:1}, material = normalMaterial, x = 0, y = 0){
     // Creates a dynamic physics box with the webcam texture
 
-    const boxGeo = new THREE.BoxGeometry(size.x, size.y, size.z)
+    const planeGeo = new THREE.PlaneGeometry(size.x, size.y)
+    const planeMesh = new THREE.Mesh(planeGeo, material)
+    
+    planeMesh.position.copy(position)
+    scene.add(planeMesh)
 
     // Calculating the UV coordinates to display the correct portion of the webcam texture on each box
     var repeat = new THREE.Vector2( 1 / parameters.xPixels, 1 / parameters.yPixels )
@@ -274,19 +272,7 @@ function createKinematicBox(position, size = {x:1, y:1, z:1}, material = normalM
     boxMesh.position.copy(position)
     scene.add(boxMesh)
 
-    const shape = new CANNON.Box( new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2) )
-    const body = new CANNON.Body({
-        mass: 1,
-        shape: shape,
-        type: CANNON.Body.KINEMATIC
-    })
-    body.position.copy(position)
-    world.addBody(body)
-
-    objectsToUpdate.push({ mesh: boxMesh, body: body })
-    body.userData = { startPos: position }
-
-    return body
+    return boxMesh
 }
 
 function resetBoxes(){
@@ -352,11 +338,6 @@ function tick(){
 }
 
 // Utility functions //
-
-function rand(min, max){
-    // Returns a random number inbetween min and max, with min and max inclusive in the result
-    return Math.floor(Math.random() * (max - min + 1) + min)
-}
 
 function clamp(num, min, max){ 
     // Clamps a value (num) between a min and a max
