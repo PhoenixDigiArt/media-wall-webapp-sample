@@ -316,7 +316,6 @@ function tick(){
     if(parameters.autoRotate){
         controls.update()
         var roundedZPos = Math.round(camera.position.z)
-        console.log(roundedZPos)
 
         if(roundedZPos == -8 && !blockFired){
             fireBlock()
