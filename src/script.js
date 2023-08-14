@@ -1,66 +1,30 @@
 import * as THREE from 'three'
 import * as dat from 'lil-gui'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import * as CANNON from 'cannon-es'
-import CannonDebugger from 'cannon-es-debugger'
 
-let canvas, renderer, scene, camera, controls
-let world, defaultMaterial, defaultContactMaterial, cannonDebugger, block
-let sizes, aspectRatio, mouse, clock, oldElapsedTime
-let normalMaterial, transparentMaterial, videoMaterial
-let planeGeometry, planeVideoMesh
-let debugGui
-let ambientLight
-let video, videoWholeTex
-let blockFired
-
-let objectsToUpdate = []
-let videoCubes = []
-
-let moveBlock = false
-
+let canvas, renderer, scene, camera, controls                           // scene config and controls
+let sizes, aspectRatio, mouse, clock, oldElapsedTime                    // scene parameters and update variables
+let video, videoMaterial, normalMaterial                  // materials
+let debugGui                                                            // UI
+let ambientLight                                                        // lights
 
 // Array to store parameters used in the debug UI
 const parameters = {
-    orbitControls: true,
-    autoRotate: true,
-    xPixels: 16,
-    yPixels: 9,
-    resetBoxes: () => {
-        resetBoxes()
-    },
-    moveBlock: fireBlock
+    testWebcam: true
 }
 
-init()
-
-createStaticBox(new THREE.Vector3(0, -5, 0), new THREE.Vector3(100, 0.1, 20), normalMaterial) // floor
-createStaticBox(new THREE.Vector3(0, 10, 0), new THREE.Vector3(100, 0.1, 20), normalMaterial) // ceiling
-createStaticBox(new THREE.Vector3(15, 0, 0), new THREE.Vector3(0.1, 20, 20), normalMaterial)  // right wall
-createStaticBox(new THREE.Vector3(-15, 0, 0), new THREE.Vector3(0.1, 20, 20), normalMaterial)  // left wall
-createStaticBox(new THREE.Vector3(0, 0, -10), new THREE.Vector3(100, 20, 0.1), normalMaterial)  // back wall
-createStaticBox(new THREE.Vector3(0, 0, 10), new THREE.Vector3(100, 20, 0.1), transparentMaterial)  // front wall
-
-block = createKinematicBox(new THREE.Vector3(0, -2, -10), new THREE.Vector3(8, 5, 10), transparentMaterial)
-
-for(var x = 0 ; x < parameters.xPixels ; x++){
-    for(var y = 0; y < parameters.yPixels; y++){
-        videoCubes.push(createDynamicBox(new THREE.Vector3(x - parameters.xPixels / 2, y - parameters.yPixels / 2, 0), new THREE.Vector3(1, 1, 1), videoMaterial, x, y))
-    }
-}
-
+init()  // initialises variables and calls all other initialisation functions
+addSceneElements()      // adds scene elements (wall, cubes)
 
 function init(){
     // Master function to initialise variables and call other initialisation functions
     mouse = new THREE.Vector2()
-    blockFired = false
 
     //// Screen
     sizes = { width: window.innerWidth, height: window.innerHeight }
     aspectRatio = sizes.width / sizes.height
 
     normalMaterial = new THREE.MeshNormalMaterial()
-    transparentMaterial = new THREE.MeshBasicMaterial( { transparent: true, opacity: 0 })
 
     //// Update
     clock = new THREE.Clock()
@@ -70,7 +34,6 @@ function init(){
     initScene()
     initGui()
     initWebcam()
-    initPhysics()
 }
 
 function initScene(){
@@ -97,8 +60,6 @@ function initScene(){
 
     controls = new OrbitControls(camera, canvas)    // orbit controls for viewing the scene during development
     controls.enableDamping = true
-    controls.autoRotate = parameters.autoRotate
-    controls.autoRotateSpeed = 3
 
     ambientLight = new THREE.AmbientLight(0xffffff, 0.7)
     scene.add(ambientLight)
@@ -106,37 +67,11 @@ function initScene(){
 
 function initGui(){
     // Initialises an instance of datGUI, a gui to be used during development. Hide this on the final product
-    debugGui = new dat.GUI()
 
-    debugGui.add(parameters, 'orbitControls').onChange( function(){ controls.enabled = parameters.orbitControls } )
-    debugGui.add(parameters, 'autoRotate').onChange( function(){ controls.autoRotate = parameters.autoRotate } )
-    //debugGui.add(parameters, 'xPixels').min(1).max(32).step(1)
-    //debugGui.add(parameters, 'yPixels').min(1).max(18).step(1)
-    debugGui.add(parameters, 'resetBoxes')
-    debugGui.add(parameters, 'moveBlock')
+    debugGui = new dat.GUI()
+    debugGui.add(parameters, 'testWebcam').onChange( function() { getWebcam(parameters.testWebcam)})
 
     //debugGui.hide()
-}
-
-function initPhysics(){
-    world = new CANNON.World()
-    world.broadphase = new CANNON.SAPBroadphase(world)
-    //world.allowSleep = true
-
-    world.gravity = new CANNON.Vec3(0, -0.5, 0)
-
-    defaultMaterial = new CANNON.Material('default')
-    defaultContactMaterial = new CANNON.ContactMaterial(
-        defaultMaterial,
-        defaultMaterial,
-        {
-            friction: 0.1,
-            restitution: 0.7
-        }
-    )
-    world.defaultContactMaterial = defaultContactMaterial
-
-    cannonDebugger = new CannonDebugger(scene, world)
 }
 
 function initWebcam(){
@@ -147,21 +82,19 @@ function initWebcam(){
     //// Setting up three.js components for rendering the webcam feed in the scene
       // This example renders a single video material on to multiple geometries
 
-    videoWholeTex = new THREE.VideoTexture(video)
+    const videoWholeTex = new THREE.VideoTexture(video)
 
     videoWholeTex.colorSpace = THREE.SRGBColorSpace
     videoMaterial = new THREE.MeshStandardMaterial({ map: videoWholeTex, side: THREE.DoubleSide })
 
-    planeGeometry = new THREE.PlaneGeometry( parameters.xPixels, parameters.yPixels );
-    planeGeometry.scale( 1.9, 1.9, 1 );
+    getWebcam(true) // Starts the webcam source, set true when testing and false when deploying to media wall
 
-    planeVideoMesh = new THREE.Mesh( planeGeometry, videoMaterial )
-    scene.add(planeVideoMesh)
-    planeVideoMesh.position.set(0, 2.5, 10)
+}
 
+function getWebcam(testWebcam){
     //// Ensures the current device has an accessible webcam, sets parameters, and starts webcam
-
-    var testWebcam = true
+      // When deployed on the media wall, the program will have to access the webcam in a different way than on your home PC
+      // Set testWebcam to true when testing at home and set to false when deploying to the media wall
 
     if(testWebcam){
         if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
@@ -203,101 +136,50 @@ function initWebcam(){
     
         })
     }
-
 }
 
-function createStaticBox(position, size = {x:1, y:1, z:1}, material = normalMaterial){
-    const boxGeo = new THREE.BoxGeometry(size.x, size.y, size.z)
-    const boxMesh = new THREE.Mesh(boxGeo, material)
-
-    boxMesh.position.copy(position)
-    boxMesh.name = "static_box"
-    scene.add(boxMesh)
-
-    const shape = new CANNON.Box( new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2) )
-    const body = new CANNON.Body({
-        mass: 0,
-        shape: shape
-    })
-    body.position.copy(position)
-    world.addBody(body)
-
+function addSceneElements(){
+    // Add all elements to the scene
+    createPlane(new THREE.Vector3(0,0,0), new THREE.Vector2(16, 9), videoMaterial)
+    createBox(new THREE.Vector3(-2,0,0), new THREE.Vector3(2,2,2), videoMaterial)
+    createSphere(new THREE.Vector3(2,0,0), 2, new THREE.Vector3(1,1,1), videoMaterial).rotation.set(0,-90,0)
 }
 
-function createDynamicBox(position, size = {x:1, y:1, z:1}, material = normalMaterial, x = 0, y = 0){
+function createPlane(position, size, material = normalMaterial){
+    // Creates a plane with postion, size and material
 
-    const boxGeo = new THREE.BoxGeometry(size.x, size.y, size.z)
+    const planeGeo = new THREE.PlaneGeometry(size.x, size.y)
+    const planeMesh = new THREE.Mesh(planeGeo, material)
+    
+    planeMesh.position.copy(position)
+    scene.add(planeMesh)
 
-    var repeat = new THREE.Vector2( 1 / parameters.xPixels, 1 / parameters.yPixels )
-    var uvAttribute = boxGeo.attributes.uv
-
-    for(var i = 0; i < uvAttribute.count; i+= 4){
-        
-        var newX = x * repeat.x
-        var newY = y * repeat.y
-        
-        uvAttribute.setXY(i, newX, newY + repeat.y)
-        uvAttribute.setXY(i + 1, newX + repeat.x, newY + repeat.y)
-        uvAttribute.setXY(i + 2, newX, newY)
-        uvAttribute.setXY(i + 3, newX + repeat.x, newY)
-
-        uvAttribute.needsUpdate = true
-    }
-
-    const boxMesh = new THREE.Mesh(boxGeo, material)
-
-    boxMesh.position.copy(position)
-    scene.add(boxMesh)
-
-    const shape = new CANNON.Box( new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2) )
-    const body = new CANNON.Body({
-        mass: 1,
-        shape: shape
-    })
-    body.position.copy(position)
-    world.addBody(body)
-
-    objectsToUpdate.push({ mesh: boxMesh, body: body })
-    body.userData = { startPos: position }
-
-    return body
+    return planeMesh
 }
 
-function createKinematicBox(position, size = {x:1, y:1, z:1}, material = normalMaterial){
+function createBox(position, size = {x:1, y:1, z:1}, material = normalMaterial){
+    // Creates a box with postion, size and material
+
     const boxGeo = new THREE.BoxGeometry(size.x, size.y, size.z)
     const boxMesh = new THREE.Mesh(boxGeo, material)
 
     boxMesh.position.copy(position)
     scene.add(boxMesh)
 
-    const shape = new CANNON.Box( new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2) )
-    const body = new CANNON.Body({
-        mass: 1,
-        shape: shape,
-        type: CANNON.Body.KINEMATIC
-    })
-    body.position.copy(position)
-    world.addBody(body)
-
-    objectsToUpdate.push({ mesh: boxMesh, body: body })
-    body.userData = { startPos: position }
-
-    return body
+    return boxMesh
 }
 
-function resetBoxes(){
-    console.log("resetting boxes")
-    videoCubes.forEach(element => {
-        element.position.copy(element.userData.startPos)    // initial position
-        element.quaternion.set(0,0,0,1)     //identity quaternion
-        element.velocity.set(0,0,0)         // reset velocity
-    })
-}
+function createSphere(position, radius, scale, material = normalMaterial){
+    // Creates a sphere with postion, radius, scale and material
 
-function fireBlock(){
-    console.log("firing block")
-    block.position.set(block.position.x, block.position.y, -10)
-    moveBlock = true
+    const sphereGeo = new THREE.SphereGeometry(radius)
+    const sphereMesh = new THREE.Mesh(sphereGeo, material)
+
+    sphereMesh.position.copy(position)
+    sphereMesh.scale.copy(scale)
+    scene.add(sphereMesh)
+
+    return sphereMesh
 }
 
 // Update /////
@@ -310,49 +192,12 @@ function tick(){
     const deltaTime = elapsedTime - oldElapsedTime
     oldElapsedTime = elapsedTime
 
-    if(parameters.autoRotate){
-        controls.update()
-        var roundedZPos = Math.round(camera.position.z)
-        console.log(roundedZPos)
-
-        if(roundedZPos == -8 && !blockFired){
-            fireBlock()
-            blockFired = true
-        }
-
-        if(roundedZPos == 0 && blockFired){
-            blockFired = false
-            resetBoxes()
-            resetBoxes()
-        }
-    } 
-
-    world.step(1 / 60, deltaTime, 3)
-
-    objectsToUpdate.forEach(element => {
-        element.mesh.position.copy(element.body.position)
-        element.mesh.quaternion.copy(element.body.quaternion)
-    })
-
-    if(moveBlock){
-        block.position.set(block.position.x, block.position.y, block.position.z + 10 * deltaTime)
-        if(block.position.z > 20){
-            console.log("Block finished")
-            moveBlock = false
-        }
-    }
-
     renderer.render(scene, camera)
 
     window.requestAnimationFrame(tick)
 }
 
 // Utility functions //
-
-function rand(min, max){
-    // Returns a random number inbetween min and max, with min and max inclusive in the result
-    return Math.floor(Math.random() * (max - min + 1) + min)
-}
 
 function clamp(num, min, max){ 
     // Clamps a value (num) between a min and a max
