@@ -12,17 +12,13 @@ let planeGeometry, planeVideoMesh
 let debugGui
 let ambientLight
 let video, videoWholeTex
+let blockFired
 
 let objectsToUpdate = []
 let videoCubes = []
-let videoMatList = []
 
 let moveBlock = false
 
-let arr
-console.log(arr)
-
-console.log(CannonDebugger)
 
 // Array to store parameters used in the debug UI
 const parameters = {
@@ -33,10 +29,7 @@ const parameters = {
     resetBoxes: () => {
         resetBoxes()
     },
-    moveBlock: () => {
-        block.position.set(block.position.x, block.position.y, -10)
-        moveBlock = true
-    }
+    moveBlock: fireBlock
 }
 
 init()
@@ -46,19 +39,21 @@ createStaticBox(new THREE.Vector3(0, 10, 0), new THREE.Vector3(100, 0.1, 20), no
 createStaticBox(new THREE.Vector3(15, 0, 0), new THREE.Vector3(0.1, 20, 20), normalMaterial)  // right wall
 createStaticBox(new THREE.Vector3(-15, 0, 0), new THREE.Vector3(0.1, 20, 20), normalMaterial)  // left wall
 createStaticBox(new THREE.Vector3(0, 0, -10), new THREE.Vector3(100, 20, 0.1), normalMaterial)  // back wall
-//createStaticBox(new THREE.Vector3(0, 0, 2), new THREE.Vector3(10, 10, 0.1), transparentMaterial)  // front wall
+createStaticBox(new THREE.Vector3(0, 0, 10), new THREE.Vector3(100, 20, 0.1), transparentMaterial)  // front wall
 
 block = createKinematicBox(new THREE.Vector3(0, -2, -10), new THREE.Vector3(8, 5, 10), transparentMaterial)
 
 for(var x = 0 ; x < parameters.xPixels ; x++){
     for(var y = 0; y < parameters.yPixels; y++){
-        videoCubes.push(createDynamicBox(new THREE.Vector3(x - parameters.xPixels / 2, y - parameters.yPixels / 2, 0), new THREE.Vector3(1, 1, 1,), arr[x][y]))
+        videoCubes.push(createDynamicBox(new THREE.Vector3(x - parameters.xPixels / 2, y - parameters.yPixels / 2, 0), new THREE.Vector3(1, 1, 1), videoMaterial, x, y))
     }
 }
+
 
 function init(){
     // Master function to initialise variables and call other initialisation functions
     mouse = new THREE.Vector2()
+    blockFired = false
 
     //// Screen
     sizes = { width: window.innerWidth, height: window.innerHeight }
@@ -66,8 +61,6 @@ function init(){
 
     normalMaterial = new THREE.MeshNormalMaterial()
     transparentMaterial = new THREE.MeshBasicMaterial( { transparent: true, opacity: 0 })
-
-    arr = Array.from(Array(parameters.xPixels), () => new Array(parameters.yPixels))
 
     //// Update
     clock = new THREE.Clock()
@@ -105,7 +98,7 @@ function initScene(){
     controls = new OrbitControls(camera, canvas)    // orbit controls for viewing the scene during development
     controls.enableDamping = true
     controls.autoRotate = parameters.autoRotate
-    controls.autoRotateSpeed = 4
+    controls.autoRotateSpeed = 3
 
     ambientLight = new THREE.AmbientLight(0xffffff, 0.7)
     scene.add(ambientLight)
@@ -128,9 +121,9 @@ function initGui(){
 function initPhysics(){
     world = new CANNON.World()
     world.broadphase = new CANNON.SAPBroadphase(world)
-    world.allowSleep = true
+    //world.allowSleep = true
 
-    world.gravity = new CANNON.Vec3(0, -9, 0)
+    world.gravity = new CANNON.Vec3(0, -0.5, 0)
 
     defaultMaterial = new CANNON.Material('default')
     defaultContactMaterial = new CANNON.ContactMaterial(
@@ -153,60 +146,64 @@ function initWebcam(){
 
     //// Setting up three.js components for rendering the webcam feed in the scene
       // This example renders a single video material on to multiple geometries
-    
-    var x = 1 / parameters.xPixels
-    var y = 1 / parameters.yPixels
-
-    var repeat = new THREE.Vector2( 1 / parameters.xPixels, 1 / parameters.yPixels )
-    console.log(repeat)
-
-    for(var x = 0 ; x < parameters.xPixels ; x++){
-        for(var y = 0; y < parameters.yPixels; y++){
-
-            var center = new THREE.Vector3(x * repeat.x, y * repeat.y)
-
-            var videoTex = new THREE.VideoTexture(video)
-            //videoTex.flipY = true
-            videoTex.repeat = repeat
-            videoTex.center = center
-            //videoTex.wrapS = THREE.RepeatWrapping
-            //videoTex.wrapT = THREE.RepeatWrapping
-
-            videoTex.userData = { x: x, y: y}
-
-            //videoMatList.push(new THREE.MeshStandardMaterial({ map: videoTex }))
-
-            arr[x][y] = new THREE.MeshStandardMaterial({ map: videoTex })
-        }
-    }
 
     videoWholeTex = new THREE.VideoTexture(video)
 
     videoWholeTex.colorSpace = THREE.SRGBColorSpace
-    videoMaterial = new THREE.MeshStandardMaterial({ map: videoWholeTex, transparent: true, opacity: 1, side: THREE.DoubleSide })
+    videoMaterial = new THREE.MeshStandardMaterial({ map: videoWholeTex, side: THREE.DoubleSide })
 
     planeGeometry = new THREE.PlaneGeometry( parameters.xPixels, parameters.yPixels );
     planeGeometry.scale( 1.9, 1.9, 1 );
 
     planeVideoMesh = new THREE.Mesh( planeGeometry, videoMaterial )
     scene.add(planeVideoMesh)
-    //planeVideoMesh.rotation.set(0, 180, 0)
     planeVideoMesh.position.set(0, 2.5, 10)
 
     //// Ensures the current device has an accessible webcam, sets parameters, and starts webcam
-    if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
-        const constraints = { video: true };
 
-        navigator.mediaDevices.getUserMedia( constraints ).then( function ( stream ) {
-            video.srcObject = stream
-            //video.Play()
-        }).catch( function (error){
-            console.error("Unable to access webcam. " + error)
-        })
+    var testWebcam = true
+
+    if(testWebcam){
+        if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+            const constraints = { video: true };
+    
+            navigator.mediaDevices.getUserMedia( constraints ).then( function ( stream ) {
+                video.srcObject = stream
+                //video.Play()
+            }).catch( function (error){
+                console.error("Unable to access webcam. " + error)
+            })
+        }
+        else{
+            console.error("Mediadevices interface is not available on this device")
+        }
     }
     else{
-        console.error("Mediadevices interface is not available on this device")
+        const constraints = { video: {width:1920,height:1080} }
+
+        navigator.mediaDevices.enumerateDevices(constraints).then( result => {
+    
+            result = result.filter( item => item.kind === 'videoinput' )
+            const constraints = {video: {deviceId:result[1].deviceId} }
+    
+            navigator.mediaDevices.getUserMedia( constraints ).then( function ( stream ) {
+    
+                video.srcObject = stream
+                // alert('received stream')
+    
+                video.onloadedmetadata = function (e) {
+                    video.setAttribute('autoplay', 'true')
+                    video.setAttribute('playsinline', 'true')
+                    video.play()
+                }
+    
+            }).catch( function (error){
+                console.error("Unable to access webcam. " + error)
+            })
+    
+        })
     }
+
 }
 
 function createStaticBox(position, size = {x:1, y:1, z:1}, material = normalMaterial){
@@ -227,8 +224,26 @@ function createStaticBox(position, size = {x:1, y:1, z:1}, material = normalMate
 
 }
 
-function createDynamicBox(position, size = {x:1, y:1, z:1}, material = normalMaterial){
+function createDynamicBox(position, size = {x:1, y:1, z:1}, material = normalMaterial, x = 0, y = 0){
+
     const boxGeo = new THREE.BoxGeometry(size.x, size.y, size.z)
+
+    var repeat = new THREE.Vector2( 1 / parameters.xPixels, 1 / parameters.yPixels )
+    var uvAttribute = boxGeo.attributes.uv
+
+    for(var i = 0; i < uvAttribute.count; i+= 4){
+        
+        var newX = x * repeat.x
+        var newY = y * repeat.y
+        
+        uvAttribute.setXY(i, newX, newY + repeat.y)
+        uvAttribute.setXY(i + 1, newX + repeat.x, newY + repeat.y)
+        uvAttribute.setXY(i + 2, newX, newY)
+        uvAttribute.setXY(i + 3, newX + repeat.x, newY)
+
+        uvAttribute.needsUpdate = true
+    }
+
     const boxMesh = new THREE.Mesh(boxGeo, material)
 
     boxMesh.position.copy(position)
@@ -271,11 +286,18 @@ function createKinematicBox(position, size = {x:1, y:1, z:1}, material = normalM
 }
 
 function resetBoxes(){
+    console.log("resetting boxes")
     videoCubes.forEach(element => {
         element.position.copy(element.userData.startPos)    // initial position
         element.quaternion.set(0,0,0,1)     //identity quaternion
         element.velocity.set(0,0,0)         // reset velocity
     })
+}
+
+function fireBlock(){
+    console.log("firing block")
+    block.position.set(block.position.x, block.position.y, -10)
+    moveBlock = true
 }
 
 // Update /////
@@ -290,7 +312,19 @@ function tick(){
 
     if(parameters.autoRotate){
         controls.update()
-        console.log(camera.position.z)
+        var roundedZPos = Math.round(camera.position.z)
+        console.log(roundedZPos)
+
+        if(roundedZPos == -8 && !blockFired){
+            fireBlock()
+            blockFired = true
+        }
+
+        if(roundedZPos == 0 && blockFired){
+            blockFired = false
+            resetBoxes()
+            resetBoxes()
+        }
     } 
 
     world.step(1 / 60, deltaTime, 3)
@@ -301,7 +335,7 @@ function tick(){
     })
 
     if(moveBlock){
-        block.position.set(block.position.x, block.position.y, block.position.z + 100 * deltaTime)
+        block.position.set(block.position.x, block.position.y, block.position.z + 10 * deltaTime)
         if(block.position.z > 20){
             console.log("Block finished")
             moveBlock = false
