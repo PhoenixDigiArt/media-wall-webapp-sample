@@ -12,7 +12,7 @@ Template project: https://github.com/adamstephensun/media-wall-webcam-template
 
 To begin, download either the sample or template project from the provided GitHub repositories and open them in your code editor of choice. If you are new to coding, Visual Studio Code is a popular option with good support and a wide range of functionality from the user-made extensions. To install the necessary libraries and dependencies to run the project, you will need NPM (Node Package Manager). You will find installation instructions here: https://docs.npmjs.com/downloading-and-installing-node-js-and-npm. 
 
-Once you have the project open and NPM installed, navigate to the project folder in your command line (or in VS Code, click Terminal>New Terminal) and run the command: `npm install`*.* This will install all the packages and dependencies required for the code to run. **Once all the files are installed, run the command: `npm run dev` . This will run a local server hosting your code to easily iterate and test your code. Simply save any changes and the local server will automatically refresh and update with the new changes.
+Once you have the project open and NPM installed, navigate to the project folder in your command line (or in VS Code, click Terminal>New Terminal) and run the command: `npm install`. This will install all the packages and dependencies required for the code to run. **Once all the files are installed, run the command: `npm run dev` . This will run a local server hosting your code to easily iterate and test your code. Simply save any changes and the local server will automatically refresh and update with the new changes.
 
 # Template overview
 
