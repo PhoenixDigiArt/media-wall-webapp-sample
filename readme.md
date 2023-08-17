@@ -24,6 +24,8 @@ To understand more about the basic components and requirements for setting up a 
 
 ## Webcam initialisation
 
+A video object is first declared in `index.html` at line 10. This HTML object is then accessed in the `initWebcam()` function.
+
 The function `initWebcam()` will create a Three.js webcam texture and material using it. `initWebcam()` calls `getWebcam()` , a separate function for retrieving the webcam from the device which takes a Boolean parameter to determine if this is a test build or a deployment build. Use `true` when developing on your local machine and `false` when deploying to the media wall. This is needed due to the way that the media wall and it’s webcam are configured, the webcam is the second video device, not first. A tick box has been added to the GUI to toggle the camera during runtime.
 
 Once the webcam is initialised in `getWebcam()` , the video feed can be used in a number of ways, such as applying it to a Three.js [VideoTexture](https://threejs.org/docs/?q=video#api/en/textures/VideoTexture). 
@@ -63,6 +65,8 @@ This project is configured to use [Vercel](https://vercel.com/dashboard) as a ho
 To use Vercel, you must first create an account. Once you have an account, run the npm command `npm install vercel`. Once Vercel is installed, run  `npm run build` . There will be a number of steps to complete for the first build then subsequent builds will be completed with just the above npm command. 
 
 To begin, select `continue with email` . Enter the email you signed up with then follow the confirmation link in the email you received. When prompted with `Set up and deploy?` , ensure it shows the project folder then enter `Y` . When prompted to choose a scope to deploy to, there should be only one option. Select it to continue. When asked to `Link to an existing project?` enter `N` . Enter a project name or choose the default one and continue. When asked `In which directory is your project located?` keep `./` and continue. When prompted with a number of settings to change, enter `N` . Your project should begin deploying and after some time, will provide a live web link. You can then log into the Vercel website dashboard to view your page and additional information.
+
+Detailed instructions on this process can be found on the great Three.js Journey course by Bruno Simon here: https://threejs-journey.com/lessons/go-live#deploy-for-the-first-time. This lesson is fortunately free but the rest are well worth paying for if you're interesting in going deeper into Three.js.
 
 To test the project on the media wall, it will have to be added to the local CMS. Contact Irina or Adam with a live web link and we can add it to the CMS and test it out.
 
