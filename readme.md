@@ -20,7 +20,7 @@ The template project contains the essential code for creating a Three.js scene a
 
 The template uses `lil-gui` as a debug UI for testing, allowing the developer to change parameters and trigger events during runtime. This should be disabled for deployment on to the media wall however.
 
-To understand more about the basic components and requirements for setting up a Three.js scene, check the extensive [documentation](https://threejs.org/docs/index.html#manual/en/introduction/Creating-a-scene) site.
+To understand more about the basic components and requirements for setting up a Three.js scene, check the extensive [documentation](https://threejs.org/docs/index.html#manual/en/introduction/Creating-a-scene) site. Also check out the showcase section on the [Three.js forums](https://discourse.threejs.org/c/showcase/7/l/top).
 
 ## Webcam initialisation
 
