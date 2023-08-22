@@ -1,12 +1,12 @@
 # Introduction
 
-These sample projects are designed to assist artists with creating content for the media wall at Phoenix Cinema and Arts Centre, Leicester, UK. They are split into two sections, Unity and JavaScript. You can find the documentation for the Unity sample here: https://github.com/twinplanets/Phoenix-Media-Wall-Sample. 
+These sample projects are designed to assist artists with creating content for the media wall at Phoenix Cinema and Arts Centre, Leicester, UK. They are split into two sections, Unity and JavaScript. You can find the documentation for the Unity sample here: https://github.com/PhoenixDigiArt/media-wall-unity-bodytracking
 
 The JavaScript section consists of a basic sample project for inspiration and a basic template with just the required code for initialising a scene and some example functionality. For this example, the Three.js library is used for 3D graphics. However, there are many other libraries that can be used, as well as using pure HTML and JS if desired. The samples use the webcam to allow for visitor interaction but this is not necessary.
 
-Sample project: https://github.com/adamstephensun/media-wall-webcam-sample
+Sample project: https://github.com/PhoenixDigiArt/media-wall-webapp-sample
 
-Template project: https://github.com/adamstephensun/media-wall-webcam-template
+Template project: https://github.com/PhoenixDigiArt/media-wall-webapp-template
 
 # Start up guide
 
@@ -70,6 +70,10 @@ Detailed instructions on this process can be found on the great Three.js Journey
 
 To test the project on the media wall, it will have to be added to the local CMS. Contact Irina or Adam with a live web link and we can add it to the CMS and test it out.
 
+# Additional support
+
+When working with JavaScript, there are endless possibilities and endless amounts of libraries and tools at your disposal. These projects are just a starting point, covering only a fraction of what is possible. While Three.js is a popular and well supported solution for 3D graphics in the browser, you may want to use 2D graphics, machine learning, ect. If you want to work beyond the templates but require some extra help, don't hesitate to contact any member of the arts team at Phoenix or Offsite. You can also contact Adam, the developer of the JavaScript templates [here](mailto:adam@adam-stephenson.co.uk).
+
 # External links
 
 Three.js: https://threejs.org/
@@ -79,3 +83,5 @@ CANNON.js: https://schteppe.github.io/cannon.js/
 Vercel: https://vercel.com/dashboard
 
 Lil-gui: https://lil-gui.georgealways.com/
+
+Open call: https://www.phoenix.org.uk/events/open-call-the-wall-digital-revelations/
