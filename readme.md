@@ -40,11 +40,15 @@ Once the webcam is initialised in `getWebcam()` , the video feed can be used in 
 
 ## Template functions
 
-The template includes a number of simple functions for creating basic geometry and objects in Three.js. This includes functions for creating boxes, spheres, planes and loading assets. 
+The template includes a number of simple functions for creating basic geometry and objects in Three.js. This includes functions for creating boxes, spheres, planes and loading 2D and 3D assets. 
+
+## Texture loading
+
+The template project contains an example of loading a texture, creating a material with that texture and rendering a sphere with the material. Loading textures is done with a `Three.TextureLoader` component. All textures shoule be placed within the `/static/textures` folder. Texture loading and material creation are both done in the `loadTextures()` function.
 
 ## 3D model loading
 
-This sample contains a example of loading and displaying a 3D model in Three.js. All assets to be loaded (textures, models, audio) should all be placed in the `/static` folder. The preferred 3D model type for Three.js is .glTF/.glb, other model types are available but this type is best optimised for use on the web. Free tools such as Blender can be used to convert 3D model types.
+This sample contains a example of loading and displaying a 3D model in Three.js. All assets to be loaded (textures, models, audio) should all be placed in the `/static/models` folder. The preferred 3D model type for Three.js is .glTF/.glb, other model types are available but this type is best optimised for use on the web. Free tools such as Blender can be used to convert 3D model types.
 
 To load the model, we use the GLTFLoader component which must be loaded into the script separately. the `loadModels()` function can be added to in order to load 3D assets. Models will contain groups within which the individual meshes are stored. To access the meshes and change properties such as material, you must iterate through the children of the loaded glTF object, as shown in the example teapot model.
 
