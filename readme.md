@@ -2,7 +2,7 @@
 
 These sample projects are designed to assist artists with creating content for the media wall at Phoenix Cinema and Arts Centre, Leicester, UK. They are split into two sections, Unity and JavaScript. You can find the documentation for the Unity sample here: https://github.com/PhoenixDigiArt/media-wall-unity-bodytracking
 
-The JavaScript section consists of a basic sample project for inspiration and a basic template with just the required code for initialising a scene and some example functionality. For this example, the Three.js library is used for 3D graphics. However, there are many other libraries that can be used, as well as using pure HTML and JS if desired. The samples use the webcam to allow for visitor interaction but this is not necessary.
+The JavaScript section consists of a basic sample project for inspiration and a basic template project with just the required code for initialising a scene and some example functionality. For this example, the Three.js library is used for 3D graphics. However, there are many other libraries that can be used, as well as using pure HTML and JS if desired. The samples use the webcam to allow for visitor interaction but this is not necessary.
 
 Sample project: https://github.com/PhoenixDigiArt/media-wall-webapp-sample
 
@@ -16,11 +16,19 @@ Once you have the project open and NPM installed, navigate to the project folder
 
 # Template overview
 
-The template project contains the essential code for creating a Three.js scene and accessing the webcam. It consists of an empty scene with several types of geometry, each showing the texture taken from the webcam. There are also a number of basic functions for creating primitive objects in three.js, such as a cube, sphere, and plane.
+The [template project](https://github.com/PhoenixDigiArt/media-wall-webapp-template) contains the essential code for creating a Three.js scene and accessing the webcam. It consists of an empty scene with several types of geometry, each showing the texture taken from the webcam. There are also a number of basic functions for creating primitive objects in three.js, such as a cube, sphere, and plane.
 
-The template uses `lil-gui` as a debug UI for testing, allowing the developer to change parameters and trigger events during runtime. This should be disabled for deployment on to the media wall however.
+index.html contains the basic HTML structure for the project, as well as a video object for retrieving the webcam feed. index.js contains the javascript code and is where the Three.js scene is initialised and manipulated. 
+
+The template and sample both use `lil-gui` as a debug UI for testing, allowing the developer to change parameters and trigger events during runtime. This should be disabled for deployment on to the media wall however.
 
 To understand more about the basic components and requirements for setting up a Three.js scene, check the extensive [documentation](https://threejs.org/docs/index.html#manual/en/introduction/Creating-a-scene) site. Also check out the showcase section on the [Three.js forums](https://discourse.threejs.org/c/showcase/7/l/top).
+
+# Sample overview
+
+The [sample project](https://github.com/PhoenixDigiArt/media-wall-webapp-sample) consists of a Three.js scene that take a webcam feed and applies it to an array of physics-enabled cubes in a large box. The camera rotates and the cubes are periodically knocked over and reset. 
+
+This sample uses CANNON.js as it’s physics engine. You begin by creating a CANNON physics world then when creating any Three.js object with physics you also create a corresponding CANNON body. The Three.js mesh and the CANNON body are added to a list of objects to update, then each frame all the mesh’s positions are updated to those of the physics bodies. To run this project you must install CANNON with the command `npm install cannon-es` .
 
 ## Webcam initialisation
 
@@ -51,12 +59,6 @@ Three.js is rich with extra modules that add functionality to your webapp. The t
 - Convex mesh breaker (with physics): https://threejs.org/examples/?q=break#physics_ammo_break
 
 Browse the [Three.js examples and documentation](https://threejs.org/) for endless inspiration and to learn new features and implementations.
-
-# Sample overview
-
-The sample project consists of a Three.js scene that take a webcam feed and applies it to an array of physics-enabled cubes in a large box. The camera rotates and the cubes are periodically knocked over and reset. 
-
-This sample uses CANNON.js as it’s physics engine. You begin by creating a CANNON physics world then when creating any Three.js object with physics you also create a corresponding CANNON body. The Three.js mesh and the CANNON body are added to a list of objects to update, then each frame all the mesh’s positions are updated to those of the physics bodies. To run this project you must install CANNON with the command `npm install cannon-es` .
 
 # Deployment
 
